@@ -16,11 +16,12 @@ package main
 
 import (
 	"errors"
-	"github.com/stretchr/testify/assert"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
