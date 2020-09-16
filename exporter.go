@@ -629,7 +629,7 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 		}
 		ch <- prometheus.MustNewConstMetric(
 			prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, "replication_lag", m.name),
+				prometheus.BuildFQName(namespace, "replication_lag", ""),
 				m.help,
 				nil, nil,
 			),
