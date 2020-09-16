@@ -40,8 +40,8 @@ var (
 	mysqlStatusF                 = flag.Bool("collect.mysql_status", true, "Collect from stats_mysql_global (SHOW MYSQL STATUS).")
 	mysqlConnectionPoolF         = flag.Bool("collect.mysql_connection_pool", true, "Collect from stats_mysql_connection_pool.")
 	mysqlConnectionListF         = flag.Bool("collect.mysql_connection_list", true, "Collect connection list from stats_mysql_processlist.")
-	mysqlDetailedConnectionListF = flag.Bool("collect.detailed.stats_mysql_processlist", false, "Collect detailed connection list from stats_mysql_processlist.")
-	memoryMetricsF               = flag.Bool("collect.stats_memory_metrics", false, "Collect memory metrics from stats_memory_metrics.")
+	mysqlDetailedConnectionListF = flag.Bool("collect.detailed.stats_mysql_processlist", true, "Collect detailed connection list from stats_mysql_processlist.")
+	memoryMetricsF               = flag.Bool("collect.stats_memory_metrics", true, "Collect memory metrics from stats_memory_metrics.")
 	replLagMetrics               = flag.Bool("collect.repl_lag_metrics", true, "Collect  replication lag metrics")
 )
 
