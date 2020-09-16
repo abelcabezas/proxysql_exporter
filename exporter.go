@@ -597,6 +597,16 @@ var replLagMetricsMetrics = map[string]*metric{
 		valueType: prometheus.GaugeValue,
 		help:      "replication lag in ms reported by proxysql monitor.",
 	},
+	"time_start_us": {
+		name:      "time_start_us",
+		valueType: prometheus.GaugeValue,
+		help:      "time_start_us for the check.",
+	},
+	"unix_time": {
+		name:      "unix_time",
+		valueType: prometheus.GaugeValue,
+		help:      "unix time representation.",
+	},
 }
 
 func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
@@ -626,7 +636,7 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 			return err
 		}
 
-		for i := 3; i < len(columns); i++ {
+		for i := 2; i < len(columns); i++ {
 			valueS = *(scan[i].(*string))
 			column = strings.ToLower(columns[i])
 			switch column {
@@ -663,44 +673,6 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 	}
 	return rows.Err()
 
-	/*rows, err := db.Query(replLagQuery)
-
-	log.Infof("Scraping replication lag")
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	///TODO
-
-	for rows.Next() {
-		var res replLagQueryMetricsResult
-
-		err := rows.Scan(&res.hostname,&res.port, &res.replLag, &res.timeStartUs, &res.unixTime)
-		if err != nil {
-			return err
-		}
-
-		m := replLagMetricsMetrics[strings.ToLower(res.hostname)]
-		if m == nil {
-			m = &metric{
-				name:      "replication_lag",
-				valueType: prometheus.GaugeValue,
-				help:      "Undocumented replication_lag metric.",
-			}
-		}
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, "monitor", m.name),
-				m.help,
-				[]string{"endpoint"}, nil,
-			),
-			m.valueType, res.replLag,
-
-
-		)
-	}
-	return rows.Err()
-	*/
 }
 
 // check interface
