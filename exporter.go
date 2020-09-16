@@ -34,6 +34,7 @@ type Exporter struct {
 	scrapeMySQLConnectionList      bool
 	scrapeDetailedMySQLProcessList bool
 	scrapeMemoryMetrics            bool
+	scrapeReplicationLagMetrics    bool
 	scrapesTotal                   prometheus.Counter
 	scrapeErrorsTotal              *prometheus.CounterVec
 	lastScrapeError                prometheus.Gauge
@@ -50,6 +51,7 @@ func NewExporter(
 	scrapeMySQLConnectionList bool,
 	scrapeDetailedMySQLProcessList bool,
 	scrapeMemoryMetrics bool,
+	scrapeReplicationLagMetrics bool,
 ) *Exporter {
 	return &Exporter{
 		dsn:                            dsn,
@@ -58,7 +60,7 @@ func NewExporter(
 		scrapeMySQLConnectionList:      scrapeMySQLConnectionList,
 		scrapeDetailedMySQLProcessList: scrapeDetailedMySQLProcessList,
 		scrapeMemoryMetrics:            scrapeMemoryMetrics,
-
+		scrapeReplicationLagMetrics:    scrapeReplicationLagMetrics,
 		scrapesTotal: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "exporter",
@@ -86,7 +88,7 @@ func NewExporter(
 		proxysqlUp: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "up",
-			Help:      "Whether ProxySQL is running or not.",
+			Help:      "Whether ProxySQL is up.",
 		}),
 	}
 }
@@ -194,6 +196,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrorsTotal.WithLabelValues("collect.stats_memory_metrics").Inc()
 		}
 	}
+	if e.scrapeReplicationLagMetrics {
+		if err = scrapeReplicationLagMetrics(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.monitor_metrics", err)
+			e.scrapeErrorsTotal.WithLabelValues("collect.monitor_metrics").Inc()
+		}
+	}
 }
 
 // metric contains information about Prometheus metric.
@@ -256,7 +264,7 @@ func scrapeMySQLGlobal(db *sql.DB, ch chan<- prometheus.Metric) error {
 		}
 		ch <- prometheus.MustNewConstMetric(
 			prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, "mysql_status", m.name),
+				prometheus.BuildFQName(namespace, "mysql_repl_lag", m.name),
 				m.help,
 				nil, nil,
 			),
@@ -530,7 +538,6 @@ func scrapeMemoryMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 		return err
 	}
 	defer rows.Close()
-
 	for rows.Next() {
 		var res memoryMetricsResult
 
@@ -558,6 +565,112 @@ func scrapeMemoryMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 		)
 	}
 
+	return rows.Err()
+}
+
+//Monitor replication lag
+//const replLagQuery = "select hostname, port, repl_lag, max(time_start_us) as time_start_us, FROM_UNIXTIME(time_start_us/1000/1000) as unix_time  from mysql_server_replication_lag_log group by hostname"
+const replLagQuery = "select A.hostname, A.port, B.hostgroup_id, A.repl_lag, max(A.time_start_us) as time_start_us  from mysql_server_replication_lag_log A  LEFT JOIN mysql_servers B on A.hostname = B.hostname group by A.hostname;"
+
+type replLagQueryMetricsResult struct {
+	hostname    string
+	port        float64
+	replLag     float64
+	hostgroupId float64
+	timeStartUs float64
+}
+
+var replLagMetricsMetrics = map[string]*metric{
+	"hostname": {
+		name:      "hostname",
+		valueType: prometheus.GaugeValue,
+		help:      "hostname.",
+	},
+	"port": {
+		name:      "port",
+		valueType: prometheus.GaugeValue,
+		help:      "endpoint port.",
+	},
+	"hostgroup_id": {
+		name:      "hostgroup_id",
+		valueType: prometheus.GaugeValue,
+		help:      "hostgroup.",
+	},
+	"repl_lag": {
+		name:      "repl_lag",
+		valueType: prometheus.GaugeValue,
+		help:      "replication lag in ms reported by proxysql monitor.",
+	},
+	"time_start_us": {
+		name:      "time_start_us",
+		valueType: prometheus.GaugeValue,
+		help:      "time_start_us for the check.",
+	},
+}
+
+func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
+	rows, err := db.Query(replLagQuery)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return err
+	}
+
+	// first 3 columns are fixed in the SELECT statement
+	scan := make([]interface{}, len(columns))
+	var hostname, port, hostgroup string
+	scan[0], scan[1], scan[2] = &hostname, &port, &hostgroup
+	for i := 3; i < len(scan); i++ {
+		scan[i] = new(string)
+	}
+
+	var value float64
+	var valueS, column string
+	for rows.Next() {
+		if err = rows.Scan(scan...); err != nil {
+			return err
+		}
+
+		for i := 3; i < len(columns); i++ {
+			valueS = *(scan[i].(*string))
+			column = strings.ToLower(columns[i])
+			switch column {
+			case "hostname", "port", "hostgroup_id":
+				continue
+			default:
+				// We could use rows.ColumnTypes() when mysql driver supports them:
+				//   https://github.com/go-sql-driver/mysql/issues/595
+				// For now, we assume every other value is a float.
+				value, err = strconv.ParseFloat(valueS, 64)
+				log.Debugf("Value  %s", value)
+				if err != nil {
+					log.Debugf("column %s: %s", column, err)
+					continue
+				}
+			}
+			m := replLagMetricsMetrics[column]
+			if m == nil {
+				m = &metric{
+					name:      column,
+					valueType: prometheus.UntypedValue,
+					help:      "Undocumented monitor_mysql_server_replication_lag_log.",
+				}
+			}
+			ch <- prometheus.MustNewConstMetric(
+				prometheus.NewDesc(
+					prometheus.BuildFQName(namespace, "monitor_mysql_server_replication_lag_log", m.name),
+					m.help,
+					[]string{"endpoint", "hostgroup"}, nil,
+				),
+				m.valueType, value,
+				hostname+":"+port, hostgroup,
+			)
+		}
+	}
 	return rows.Err()
 }
 
