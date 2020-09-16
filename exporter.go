@@ -635,7 +635,7 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 			return err
 		}
 
-		for i := 2; i <= len(columns); i++ {
+		for i := 2; i < len(columns); i++ {
 			valueS = *(scan[i].(*string))
 			column = strings.ToLower(columns[i])
 			switch column {
