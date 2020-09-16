@@ -34,6 +34,7 @@ type Exporter struct {
 	scrapeMySQLConnectionList      bool
 	scrapeDetailedMySQLProcessList bool
 	scrapeMemoryMetrics            bool
+	scrapeReplicationLagMetrics    bool
 	scrapesTotal                   prometheus.Counter
 	scrapeErrorsTotal              *prometheus.CounterVec
 	lastScrapeError                prometheus.Gauge
@@ -50,6 +51,7 @@ func NewExporter(
 	scrapeMySQLConnectionList bool,
 	scrapeDetailedMySQLProcessList bool,
 	scrapeMemoryMetrics bool,
+	scrapeReplicationLagMetrics bool,
 ) *Exporter {
 	return &Exporter{
 		dsn:                            dsn,
@@ -58,7 +60,7 @@ func NewExporter(
 		scrapeMySQLConnectionList:      scrapeMySQLConnectionList,
 		scrapeDetailedMySQLProcessList: scrapeDetailedMySQLProcessList,
 		scrapeMemoryMetrics:            scrapeMemoryMetrics,
-
+		scrapeReplicationLagMetrics:    scrapeReplicationLagMetrics,
 		scrapesTotal: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "exporter",
@@ -86,7 +88,7 @@ func NewExporter(
 		proxysqlUp: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "up",
-			Help:      "Whether ProxySQL is running or not.",
+			Help:      "Whether ProxySQL is up.",
 		}),
 	}
 }
@@ -192,6 +194,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		if err = scrapeMemoryMetrics(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.stats_memory_metrics", err)
 			e.scrapeErrorsTotal.WithLabelValues("collect.stats_memory_metrics").Inc()
+		}
+	}
+	if e.scrapeReplicationLagMetrics {
+		if err = scrapeReplicationLagMetrics(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.monitor_metrics", err)
+			e.scrapeErrorsTotal.WithLabelValues("collect.monitor_metrics").Inc()
 		}
 	}
 }
@@ -530,7 +538,8 @@ func scrapeMemoryMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 		return err
 	}
 	defer rows.Close()
-
+	//TODO debug this
+	log.Infof("Rows for scrapeMemoryMetrics %s ", rows)
 	for rows.Next() {
 		var res memoryMetricsResult
 
@@ -555,6 +564,64 @@ func scrapeMemoryMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 			),
 			m.valueType,
 			res.value,
+		)
+	}
+
+	return rows.Err()
+}
+
+//Monitor replication lag
+
+const replLagQuery = "select distinct(hostname), repl_lag, time_start_us  from mysql_server_replication_lag_log   where hostname =(SELECT hostname FROM mysql_servers group by hostname  HAVING COUNT(*)<2)"
+
+//select distinct(hostname), repl_lag, time_start_us  from mysql_server_replication_lag_log   where hostname =(SELECT hostname FROM mysql_servers group by hostname  HAVING COUNT(*)<2)  order by time_start_us desc limit 1
+type replLagQueryMetricsResult struct {
+	hostname    string
+	replLag     float64
+	timeStartUs float64
+}
+
+//TODO
+var replLagMetricsMetrics = map[string]*metric{
+	"something": {
+		name:      "jemalloc_allocated",
+		valueType: prometheus.GaugeValue,
+		help:      "bytes allocated by the application",
+	},
+}
+
+//TODO
+func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
+	rows, err := db.Query(replLagQuery)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var res replLagQueryMetricsResult
+
+		err := rows.Scan(&res.hostname, &res.replLag)
+		if err != nil {
+			return err
+		}
+
+		m := replLagMetricsMetrics[strings.ToLower(res.hostname)]
+		if m == nil {
+			m = &metric{
+				name:      res.hostname,
+				valueType: prometheus.UntypedValue,
+				help:      "Undocumented replication_lag metric.",
+			}
+		}
+		ch <- prometheus.MustNewConstMetric(
+			prometheus.NewDesc(
+				prometheus.BuildFQName(namespace, "replication_lag", m.name),
+				m.help,
+				nil, nil,
+			),
+			m.valueType,
+			res.replLag,
 		)
 	}
 
