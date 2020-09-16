@@ -571,7 +571,7 @@ func scrapeMemoryMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 //Monitor replication lag
 
-const replLagQuery = "select hostname, port, repl_lag, max(time_start_us) as time_start_us, FROM_UNIXTIME(time_start_us/1000/1000) as unix_time  from mysql_server_replication_lag_log group by hostname"
+const replLagQuery = "select hostname, port, repl_lag as unix_time  from mysql_server_replication_lag_log group by hostname"
 
 type replLagQueryMetricsResult struct {
 	hostname    string
@@ -596,16 +596,6 @@ var replLagMetricsMetrics = map[string]*metric{
 		name:      "repl_lag",
 		valueType: prometheus.GaugeValue,
 		help:      "replication lag in ms reported by proxysql monitor.",
-	},
-	"time_start_us": {
-		name:      "time_start_us",
-		valueType: prometheus.GaugeValue,
-		help:      "time_start_us for the check.",
-	},
-	"unix_time": {
-		name:      "unix_time",
-		valueType: prometheus.GaugeValue,
-		help:      "unix time representation.",
 	},
 }
 
