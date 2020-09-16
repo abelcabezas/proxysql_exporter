@@ -539,7 +539,7 @@ func scrapeMemoryMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 	}
 	defer rows.Close()
 	//TODO debug this
-	log.Infof("Rows for scrapeMemoryMetrics %s ", rows)
+	//log.Infof("Rows for scrapeMemoryMetrics %s ", rows)
 	for rows.Next() {
 		var res memoryMetricsResult
 
@@ -549,6 +549,7 @@ func scrapeMemoryMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 		}
 
 		m := memoryMetricsMetrics[strings.ToLower(res.name)]
+		log.Infof("Memory metrics map %s ", m)
 		if m == nil {
 			m = &metric{
 				name:      res.name,
@@ -601,7 +602,7 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 	for rows.Next() {
 		var res replLagQueryMetricsResult
 
-		err := rows.Scan(&res.hostname, &res.replLag)
+		err := rows.Scan(&res.hostname, &res.replLag, &res.timeStartUs)
 		if err != nil {
 			return err
 		}
