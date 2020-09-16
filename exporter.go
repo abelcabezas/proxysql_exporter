@@ -614,7 +614,7 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 	for rows.Next() {
 		var res replLagQueryMetricsResult
 
-		err := rows.Scan(&res.hostname, &res.replLag, &res.timeStartUs, &res.error, &res.unixTime)
+		err := rows.Scan(&res.hostname, &res.replLag, &res.timeStartUs, &res.unixTime)
 		if err != nil {
 			return err
 		}
