@@ -623,15 +623,15 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 		if m == nil {
 			m = &metric{
 				name:      res.hostname,
-				valueType: prometheus.UntypedValue,
+				valueType: prometheus.GaugeValue,
 				help:      "Undocumented replication_lag metric.",
 			}
 		}
 		ch <- prometheus.MustNewConstMetric(
 			prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, "replication_lag", "{endpoint="+m.name+"}"),
+				prometheus.BuildFQName(namespace, "monitor", "replication_lag"),
 				m.help,
-				nil, nil,
+				[]string{"endpoint"}, nil,
 			),
 			m.valueType,
 			res.replLag,
