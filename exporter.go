@@ -264,7 +264,7 @@ func scrapeMySQLGlobal(db *sql.DB, ch chan<- prometheus.Metric) error {
 		}
 		ch <- prometheus.MustNewConstMetric(
 			prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, "mysql_status", m.name),
+				prometheus.BuildFQName(namespace, "mysql_repl_lag", m.name),
 				m.help,
 				nil, nil,
 			),
@@ -617,42 +617,43 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 	defer rows.Close()
 
 	//New code
-	columns, err := rows.Columns()
-	if err != nil {
-		return err
-	}
-	for i := 0; i < len(columns); i++ {
-		log.Infof("Column scraped: %s ", strings.ToLower(columns[i]))
-	}
-
 	/*
-		for rows.Next() {
-			var res replLagQueryMetricsResult
-
-			err := rows.Scan(&res.hostname, &res.replLag, &res.timeStartUs, &res.error, &res.unixTime)
-			if err != nil {
-				return err
-			}
-
-			m := replLagMetricsMetrics[strings.ToLower(res.hostname)]
-			if m == nil {
-				m = &metric{
-					name:      res.hostname,
-					valueType: prometheus.UntypedValue,
-					help:      "Undocumented replication_lag metric.",
-				}
-			}
-			ch <- prometheus.MustNewConstMetric(
-				prometheus.NewDesc(
-					prometheus.BuildFQName(namespace, "replication_lag", m.name),
-					m.help,
-					nil, nil,
-				),
-				m.valueType,
-				res.replLag,
-			)
+		columns, err := rows.Columns()
+		if err != nil {
+			return err
+		}
+		for i := 0; i < len(columns); i++ {
+			log.Infof("Column scraped: %s ", strings.ToLower(columns[i]))
 		}
 	*/
+
+	for rows.Next() {
+		var res replLagQueryMetricsResult
+
+		err := rows.Scan(&res.hostname, &res.replLag, &res.timeStartUs, &res.error, &res.unixTime)
+		if err != nil {
+			return err
+		}
+
+		m := replLagMetricsMetrics[strings.ToLower(res.hostname)]
+		if m == nil {
+			m = &metric{
+				name:      res.hostname,
+				valueType: prometheus.UntypedValue,
+				help:      "Undocumented replication_lag metric.",
+			}
+		}
+		ch <- prometheus.MustNewConstMetric(
+			prometheus.NewDesc(
+				prometheus.BuildFQName(namespace, "replication_lag", m.name),
+				m.help,
+				nil, nil,
+			),
+			m.valueType,
+			res.replLag,
+		)
+	}
+
 	return rows.Err()
 }
 
