@@ -578,7 +578,7 @@ type replLagQueryMetricsResult struct {
 	port        float64
 	replLag     float64
 	timeStartUs float64
-	unixTime    string
+	unixTime    float64
 }
 
 var replLagMetricsMetrics = map[string]*metric{
@@ -672,45 +672,6 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 		}
 	}
 	return rows.Err()
-
-	/*rows, err := db.Query(replLagQuery)
-
-	log.Infof("Scraping replication lag")
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	///TODO
-
-	for rows.Next() {
-		var res replLagQueryMetricsResult
-
-		err := rows.Scan(&res.hostname,&res.port, &res.replLag, &res.timeStartUs, &res.unixTime)
-		if err != nil {
-			return err
-		}
-
-		m := replLagMetricsMetrics[strings.ToLower(res.hostname)]
-		if m == nil {
-			m = &metric{
-				name:      "replication_lag",
-				valueType: prometheus.GaugeValue,
-				help:      "Undocumented replication_lag metric.",
-			}
-		}
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, "monitor", m.name),
-				m.help,
-				[]string{"endpoint"}, nil,
-			),
-			m.valueType, res.replLag,
-
-
-		)
-	}
-	return rows.Err()
-	*/
 }
 
 // check interface
