@@ -616,17 +616,6 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 	}
 	defer rows.Close()
 
-	//New code
-	/*
-		columns, err := rows.Columns()
-		if err != nil {
-			return err
-		}
-		for i := 0; i < len(columns); i++ {
-			log.Infof("Column scraped: %s ", strings.ToLower(columns[i]))
-		}
-	*/
-
 	for rows.Next() {
 		var res replLagQueryMetricsResult
 
