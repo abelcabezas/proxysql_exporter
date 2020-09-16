@@ -569,7 +569,7 @@ func scrapeMemoryMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 }
 
 //Monitor replication lag
-
+//TODO get hostname
 const replLagQuery = "select hostname, port, repl_lag, max(time_start_us) as time_start_us, FROM_UNIXTIME(time_start_us/1000/1000) as unix_time  from mysql_server_replication_lag_log group by hostname"
 
 type replLagQueryMetricsResult struct {
@@ -635,7 +635,7 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 			return err
 		}
 
-		for i := 2; i < len(columns); i++ {
+		for i := 2; i <= len(columns); i++ {
 			valueS = *(scan[i].(*string))
 			column = strings.ToLower(columns[i])
 			switch column {
@@ -665,6 +665,7 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 					m.help,
 					[]string{"hostname"}, nil,
 				),
+				//TODO  hostgroup
 				m.valueType, value,
 				hostname+":"+port,
 			)
