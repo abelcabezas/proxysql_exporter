@@ -571,7 +571,7 @@ func scrapeMemoryMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 //Monitor replication lag
 
-const replLagQuery = "select hostname, port, repl_lag as unix_time  from mysql_server_replication_lag_log group by hostname"
+const replLagQuery = "select hostname, port, repl_lag, max(time_start_us) as time_start_us, FROM_UNIXTIME(time_start_us/1000/1000) as unix_time  from mysql_server_replication_lag_log group by hostname"
 
 type replLagQueryMetricsResult struct {
 	hostname    string
@@ -673,6 +673,44 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 	}
 	return rows.Err()
 
+	/*rows, err := db.Query(replLagQuery)
+
+	log.Infof("Scraping replication lag")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	///TODO
+
+	for rows.Next() {
+		var res replLagQueryMetricsResult
+
+		err := rows.Scan(&res.hostname,&res.port, &res.replLag, &res.timeStartUs, &res.unixTime)
+		if err != nil {
+			return err
+		}
+
+		m := replLagMetricsMetrics[strings.ToLower(res.hostname)]
+		if m == nil {
+			m = &metric{
+				name:      "replication_lag",
+				valueType: prometheus.GaugeValue,
+				help:      "Undocumented replication_lag metric.",
+			}
+		}
+		ch <- prometheus.MustNewConstMetric(
+			prometheus.NewDesc(
+				prometheus.BuildFQName(namespace, "monitor", m.name),
+				m.help,
+				[]string{"endpoint"}, nil,
+			),
+			m.valueType, res.replLag,
+
+
+		)
+	}
+	return rows.Err()
+	*/
 }
 
 // check interface
