@@ -547,7 +547,6 @@ func scrapeMemoryMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 		}
 
 		m := memoryMetricsMetrics[strings.ToLower(res.name)]
-		log.Infof("Memory metrics map %s ", m)
 		if m == nil {
 			m = &metric{
 				name:      res.name,
