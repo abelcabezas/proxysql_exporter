@@ -577,7 +577,7 @@ type replLagQueryMetricsResult struct {
 	port        float64
 	replLag     float64
 	timeStartUs float64
-	unixTime    float64
+	unixTime    string
 }
 
 var replLagMetricsMetrics = map[string]*metric{
@@ -641,11 +641,14 @@ func scrapeReplicationLagMetrics(db *sql.DB, ch chan<- prometheus.Metric) error 
 			switch column {
 			case "hostname", "port":
 				continue
+			case "unix_time":
+				log.Debugf("Value  %s", value)
 			default:
 				// We could use rows.ColumnTypes() when mysql driver supports them:
 				//   https://github.com/go-sql-driver/mysql/issues/595
 				// For now, we assume every other value is a float.
 				value, err = strconv.ParseFloat(valueS, 64)
+				log.Debugf("Value  %s", value)
 				if err != nil {
 					log.Debugf("column %s: %s", column, err)
 					continue
