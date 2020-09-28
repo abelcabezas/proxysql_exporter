@@ -43,6 +43,7 @@ var (
 	mysqlDetailedConnectionListF = flag.Bool("collect.detailed.stats_mysql_processlist", true, "Collect detailed connection list from stats_mysql_processlist.")
 	memoryMetricsF               = flag.Bool("collect.stats_memory_metrics", true, "Collect memory metrics from stats_memory_metrics.")
 	replLagMetrics               = flag.Bool("collect.repl_lag_metrics", true, "Collect  replication lag metrics")
+	pingLogMetrics               = flag.Bool("collect.ping_log", true, "Collect  ping log metrics")
 )
 
 func main() {
@@ -68,7 +69,7 @@ func main() {
 
 	log.Infof("Starting %s %s for %s", program, version.Version, dsn)
 
-	exporter := NewExporter(dsn, *mysqlStatusF, *mysqlConnectionPoolF, *mysqlConnectionListF, *mysqlDetailedConnectionListF, *memoryMetricsF, *replLagMetrics)
+	exporter := NewExporter(dsn, *mysqlStatusF, *mysqlConnectionPoolF, *mysqlConnectionListF, *mysqlDetailedConnectionListF, *memoryMetricsF, *replLagMetrics, *pingLogMetrics)
 	prometheus.MustRegister(exporter)
 
 	exporter_shared.RunServer("ProxySQL", *listenAddressF, *telemetryPathF, promhttp.ContinueOnError)
