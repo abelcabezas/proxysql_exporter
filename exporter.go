@@ -273,7 +273,7 @@ func scrapeMySQLGlobal(db *sql.DB, ch chan<- prometheus.Metric) error {
 		}
 		ch <- prometheus.MustNewConstMetric(
 			prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, "mysql_repl_lag", m.name),
+				prometheus.BuildFQName(namespace, "mysql_status", m.name),
 				m.help,
 				nil, nil,
 			),
@@ -547,6 +547,7 @@ func scrapeMemoryMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 		return err
 	}
 	defer rows.Close()
+
 	for rows.Next() {
 		var res memoryMetricsResult
 
